@@ -1,0 +1,2 @@
+# fullScreenInWindow
+動画をwindowフルスクリーンで見れる拡張機能
