@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'">
+  <title>Window Fullscreen</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <rect x="2" y="3" width="20" height="18" rx="2"/>
+          <path d="M2 7h20"/>
+          <polygon points="10,11 16,14 10,17" fill="currentColor" stroke="none"/>
+        </svg>
+      </div>
+      <div>
+        <h1>Window Fullscreen</h1>
+        <p>ウィンドウ内フルスクリーン</p>
+      </div>
+      <label class="toggle" for="tog" title="有効/無効">
+        <input type="checkbox" id="tog" checked>
+        <span class="track"><span class="thumb"></span></span>
+      </label>
+    </header>
+
+    <div class="card" id="card">
+      <span class="dot" id="dot"></span>
+      <span id="st">有効 – フルスクリーンを乗っ取り中</span>
+    </div>
+
+    <div class="card info">
+      <p>フルスクリーンボタンを押すと、OS全画面の代わりにブラウザウィンドウいっぱいに表示します。</p>
+    </div>
+
+    <div class="sc">
+      <kbd>Esc</kbd><span>ウィンドウフルスクリーンを終了</span>
+    </div>
+
+    <footer>v1.0.0 · あらゆる &lt;video&gt; 要素に対応</footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
