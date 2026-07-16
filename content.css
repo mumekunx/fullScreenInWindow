@@ -1,4 +1,5 @@
 html.wfs-lock,html.wfs-lock body{overflow:hidden!important}
+html.wfs-root,html.wfs-root body{background:#000!important}
 
 #wfs-overlay{
   position:fixed!important;inset:0!important;

@@ -41,8 +41,9 @@
     if (active) return;
     active = true; target = el;
 
-    overlay = document.createElement('div');
-    overlay.id = 'wfs-overlay';
+    // <html>/<body> が対象の場合、オーバーレイを挿入すると全コンテンツを覆い隠すため
+    // 黒背景のみ適用し、レイアウトはサイト自身のフルスクリーン処理に任せる
+    const isRoot = el === document.documentElement || el === document.body;
 
     // innerHTML の代わりに DOM API でコントロールを構築（XSS対策）
     controls = document.createElement('div');
@@ -63,9 +64,16 @@
 
     inner.append(badge, btn);
     controls.appendChild(inner);
-    document.documentElement.append(overlay, controls);
 
-    el.classList.add('wfs-active');
+    if (isRoot) {
+      document.documentElement.classList.add('wfs-root');
+      document.documentElement.append(controls);
+    } else {
+      overlay = document.createElement('div');
+      overlay.id = 'wfs-overlay';
+      el.classList.add('wfs-active');
+      document.documentElement.append(overlay, controls);
+    }
     document.documentElement.classList.add('wfs-lock');
     document.addEventListener('mousemove', onMove, { passive: true });
     show();
@@ -93,6 +101,7 @@
     overlay?.remove(); overlay = null;
     controls?.remove(); controls = null;
     document.documentElement.classList.remove('wfs-lock');
+    document.documentElement.classList.remove('wfs-root');
     if (notify) window.dispatchEvent(new CustomEvent('__wfs_exit_from_content__'));
   }
 

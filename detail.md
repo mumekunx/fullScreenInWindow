@@ -29,10 +29,10 @@
 - `inject()`: `injected.js` を `<script>` タグとしてページに注入する（多重注入防止のため `[data-wfs]` の存在をチェック）
 - `window` イベントリスナー `__wfs_enter__`: `injected.js` からの「フルスクリーン開始」通知を受け、対象要素の `wfsId` を検証（`/^wfs-\d+$/`、`CSS.escape` で XSS 対策）した上で `enter()` を呼ぶ
 - `window` イベントリスナー `__wfs_exit__`: `injected.js` からの「フルスクリーン終了」通知を受け、`active` なら `cleanup(false)` を呼ぶ（`injected.js` 側は既にリセット済みのため通知は不要）
-- `enter(el)`: オーバーレイ（`#wfs-overlay`）とコントロール UI（`#wfs-controls`、終了ボタン付き）を DOM API で構築（`innerHTML` 不使用、XSS 対策）し、対象要素に `wfs-active` クラスを付与してウィンドウフルスクリーン状態にする
+- `enter(el)`: コントロール UI（`#wfs-controls`、終了ボタン付き）を DOM API で構築（`innerHTML` 不使用、XSS 対策）する。対象要素が `<html>`/`<body>`（`isRoot`）かどうかで分岐: `isRoot` の場合はページ全体が既にウィンドウいっぱいのため `#wfs-overlay` と `.wfs-active` は使わず、`<html>` に `wfs-root` クラス（黒背景のみ）を付与してサイト自身のフルスクリーンレイアウトに任せる（YouTube など `document.documentElement` に `requestFullscreen` するサイトで、オーバーレイが全コンテンツを覆い隠して真っ黒になる不具合の回避策）。非ルート要素の場合は従来どおり `#wfs-overlay` を構築し、対象要素に `wfs-active` クラスを付与する
 - `show()`: コントロール UI を表示し、3秒後に自動で隠すタイマーをセット
 - `onMove()`: マウス移動時にコントロール UI を再表示する
-- `cleanup(notify)`: フルスクリーン状態を解除し、オーバーレイ・コントロール DOM を削除する。`notify` が真なら `__wfs_exit_from_content__` イベントを発火し、`injected.js` 側の `active`/`fullscreenElement` スプーフィング状態もリセットさせる
+- `cleanup(notify)`: フルスクリーン状態を解除し、オーバーレイ・コントロール DOM を削除し、`wfs-lock` / `wfs-root` クラスを `<html>` から除去する。`notify` が真なら `__wfs_exit_from_content__` イベントを発火し、`injected.js` 側の `active`/`fullscreenElement` スプーフィング状態もリセットさせる
 - `api.runtime.onMessage` リスナー: `WFS_SET_ENABLED` メッセージを受信すると `enabled` を更新し、`reflect()` で `data-wfs-enabled` 属性を同期。無効化かつフルスクリーン中なら `cleanup(true)` を呼び、`injected.js` 側の状態も確実にリセットする
 - `keydown` リスナー: `Escape` キー押下時、フルスクリーン中なら `cleanup(true)` を呼ぶ
 
@@ -109,8 +109,9 @@
 
 ### 主要な定義
 - `html.wfs-lock`: ページ全体のスクロールを禁止（`overflow:hidden`）
-- `#wfs-overlay`: 画面全体を覆う黒背景のオーバーレイ（`z-index:2147483640`）
-- `.wfs-active`: フルスクリーン対象要素を `position:fixed` で画面いっぱいに表示するスタイル（`z-index:2147483645`）
+- `html.wfs-root`: フルスクリーン対象が `<html>`/`<body>` 自身の場合に付与される黒背景クラス（`#wfs-overlay`/`.wfs-active` を使わずページ全体を黒く塗るためのフォールバック。YouTube など `document.documentElement` に `requestFullscreen` するサイトで、オーバーレイが全コンテンツを覆い隠して真っ黒になる不具合の回避策）
+- `#wfs-overlay`: 画面全体を覆う黒背景のオーバーレイ（`z-index:2147483640`）。要素ターゲット時のみ使用
+- `.wfs-active`: フルスクリーン対象要素を `position:fixed` で画面いっぱいに表示するスタイル（`z-index:2147483645`）。要素ターゲット時のみ使用
 - `video.wfs-active`: 動画要素の `object-fit:contain` 指定
 - `#wfs-controls` / `.wfs-on`: 上部に表示される操作バー。通常は非表示（`opacity:0`）、`wfs-on` クラス付与時にフェードイン（`z-index:2147483647`）
 - `#wfs-controls-inner`: バッジと終了ボタンを左右に配置するフレックスレイアウト
