@@ -12,8 +12,10 @@
     const on = tog.checked;
     api.storage.sync.set({ wfsEnabled: on });
     setUI(on);
-    api.tabs.query({ active: true, currentWindow: true }, tabs => {
-      if (tabs[0]) api.tabs.sendMessage(tabs[0].id, { type: 'WFS_SET_ENABLED', enabled: on }).catch(() => {});
+    api.tabs.query({}, tabs => {
+      for (const t of tabs) {
+        api.tabs.sendMessage(t.id, { type: 'WFS_SET_ENABLED', enabled: on }).catch(() => {});
+      }
     });
   });
 

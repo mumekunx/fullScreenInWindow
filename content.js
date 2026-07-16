@@ -7,8 +7,13 @@
   // 設定読み込み → スクリプト注入
   api.storage.sync.get(['wfsEnabled'], r => {
     enabled = r.wfsEnabled !== false;
+    reflect();
     inject();
   });
+
+  function reflect() {
+    document.documentElement.dataset.wfsEnabled = String(enabled);
+  }
 
   function inject() {
     if (document.querySelector('[data-wfs]')) return;
@@ -95,7 +100,8 @@
   api.runtime.onMessage.addListener((msg, _, res) => {
     if (msg.type === 'WFS_SET_ENABLED') {
       enabled = msg.enabled;
-      if (!enabled && active) cleanup(false);
+      reflect();
+      if (!enabled && active) cleanup(true);
       res({ ok: true });
     }
   });

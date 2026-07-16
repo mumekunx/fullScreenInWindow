@@ -52,8 +52,18 @@
     return Promise.resolve();
   }
 
-  Element.prototype.requestFullscreen = function () { return enter(this); };
-  if (_wkReqFS) Element.prototype.webkitRequestFullscreen = function () { return enter(this); };
+  function disabled() {
+    return document.documentElement.getAttribute('data-wfs-enabled') === 'false';
+  }
+
+  Element.prototype.requestFullscreen = function (opts) {
+    if (disabled()) return _reqFS ? _reqFS.call(this, opts) : Promise.resolve();
+    return enter(this);
+  };
+  if (_wkReqFS) Element.prototype.webkitRequestFullscreen = function (...args) {
+    if (disabled()) return _wkReqFS.apply(this, args);
+    return enter(this);
+  };
 
   Document.prototype.exitFullscreen = function () {
     return active ? exit() : (_exitFS ? _exitFS.call(this) : Promise.resolve());

@@ -1,0 +1,6 @@
+- [x] content.js: data-wfs-enabled 属性の反映
+- [x] injected.js: 無効時のネイティブフォールバック
+- [x] popup.js: 全タブへブロードキャスト
+- [x] node --check で構文確認
+- [x] detail.md 作成
+- [x] update.md 完了マーク
