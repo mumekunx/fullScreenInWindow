@@ -1,77 +1,119 @@
 (function () {
   'use strict';
 
-  const _sym = Symbol('wfs');
-  if (window[_sym]) return;
-  window[_sym] = true;
+  const runtimeKey = '__windowFullscreenMainRuntime';
+  if (window[runtimeKey]) return;
 
-  const _reqFS   = Element.prototype.requestFullscreen;
-  const _wkReqFS = Element.prototype.webkitRequestFullscreen;
-  const _exitFS  = Document.prototype.exitFullscreen;
-  const _wkExit  = Document.prototype.webkitExitFullscreen;
+  const nativeRequest = Element.prototype.requestFullscreen;
+  const nativeWebkitRequest = Element.prototype.webkitRequestFullscreen;
+  const nativeExit = Document.prototype.exitFullscreen;
+  const nativeWebkitExit = Document.prototype.webkitExitFullscreen;
+  const originalDocumentProperties = new Map();
+  const patchedPropertyGetters = new Map();
+  const propertyNames = ['fullscreenElement', 'webkitFullscreenElement'];
+  let active = false;
+  let target = null;
+  let counter = 0;
 
-  let active = false, target = null, counter = 0;
-
-  function patchProps(el) {
-    try {
-      const get = (v) => () => v;
-      for (const k of ['fullscreenElement','webkitFullscreenElement'])
-        Object.defineProperty(document, k, { get: () => active ? el : null, configurable: true });
-      for (const k of ['fullscreenEnabled','webkitFullscreenEnabled'])
-        Object.defineProperty(document, k, { get: get(true), configurable: true });
-    } catch (_) {}
+  for (const name of propertyNames) {
+    originalDocumentProperties.set(name, Object.getOwnPropertyDescriptor(document, name));
   }
 
-  function fireChange(el) {
-    ['fullscreenchange','webkitfullscreenchange'].forEach(n => {
-      document.dispatchEvent(new Event(n, { bubbles: true }));
-      el && el.dispatchEvent(new Event(n, { bubbles: true }));
-    });
+  function setFullscreenElement(value) {
+    for (const name of propertyNames) {
+      try {
+        const getter = () => value;
+        patchedPropertyGetters.set(name, getter);
+        Object.defineProperty(document, name, {
+          configurable: true,
+          get: getter
+        });
+      } catch (_) {}
+    }
   }
 
-  function enter(el) {
-    active = true; target = el;
-    const id = 'wfs-' + (++counter);
-    el.setAttribute('data-wfs-id', id);
-    patchProps(el);
-    window.dispatchEvent(new CustomEvent('__wfs_enter__', { detail: { id } }));
-    setTimeout(() => fireChange(el), 50);
+  function fireChange() {
+    for (const name of ['fullscreenchange', 'webkitfullscreenchange']) {
+      document.dispatchEvent(new Event(name, { bubbles: true }));
+    }
+  }
+
+  function enter(element) {
+    active = true;
+    target = element;
+    const id = `wfs-${++counter}`;
+    element.setAttribute('data-window-fullscreen-id', id);
+    setFullscreenElement(element);
+    window.dispatchEvent(new CustomEvent('__window_fullscreen_enter__', { detail: { id } }));
+    setTimeout(fireChange, 0);
     return Promise.resolve();
   }
 
   function exit() {
     if (!active) return Promise.resolve();
-    const el = target;
-    active = false; target = null;
-    try {
-      for (const k of ['fullscreenElement','webkitFullscreenElement'])
-        Object.defineProperty(document, k, { get: () => null, configurable: true });
-    } catch (_) {}
-    window.dispatchEvent(new CustomEvent('__wfs_exit__'));
-    setTimeout(() => fireChange(el), 50);
+    active = false;
+    target?.removeAttribute('data-window-fullscreen-id');
+    target = null;
+    setFullscreenElement(null);
+    window.dispatchEvent(new CustomEvent('__window_fullscreen_exit__'));
+    setTimeout(fireChange, 0);
     return Promise.resolve();
   }
 
-  function disabled() {
-    return document.documentElement.getAttribute('data-wfs-enabled') === 'false';
+  function requestFullscreen() {
+    return enter(this);
   }
 
-  Element.prototype.requestFullscreen = function (opts) {
-    if (disabled()) return _reqFS ? _reqFS.call(this, opts) : Promise.resolve();
+  function webkitRequestFullscreen() {
     return enter(this);
-  };
-  if (_wkReqFS) Element.prototype.webkitRequestFullscreen = function (...args) {
-    if (disabled()) return _wkReqFS.apply(this, args);
-    return enter(this);
-  };
+  }
 
-  Document.prototype.exitFullscreen = function () {
-    return active ? exit() : (_exitFS ? _exitFS.call(this) : Promise.resolve());
-  };
-  if (_wkExit) Document.prototype.webkitExitFullscreen = function () {
-    return active ? exit() : _wkExit.call(this);
-  };
+  function exitFullscreen() {
+    return active ? exit() : (nativeExit ? nativeExit.call(this) : Promise.resolve());
+  }
 
-  window.addEventListener('__wfs_exit_from_content__', exit);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && active) exit(); }, true);
+  function webkitExitFullscreen() {
+    return active ? exit() : (nativeWebkitExit ? nativeWebkitExit.call(this) : undefined);
+  }
+
+  function restore() {
+    if (active) exit();
+
+    if (Element.prototype.requestFullscreen === requestFullscreen) {
+      Element.prototype.requestFullscreen = nativeRequest;
+    }
+    if (Element.prototype.webkitRequestFullscreen === webkitRequestFullscreen) {
+      if (nativeWebkitRequest) Element.prototype.webkitRequestFullscreen = nativeWebkitRequest;
+      else delete Element.prototype.webkitRequestFullscreen;
+    }
+    if (Document.prototype.exitFullscreen === exitFullscreen) {
+      Document.prototype.exitFullscreen = nativeExit;
+    }
+    if (Document.prototype.webkitExitFullscreen === webkitExitFullscreen) {
+      if (nativeWebkitExit) Document.prototype.webkitExitFullscreen = nativeWebkitExit;
+      else delete Document.prototype.webkitExitFullscreen;
+    }
+
+    for (const [name, descriptor] of originalDocumentProperties) {
+      try {
+        if (!patchedPropertyGetters.has(name)) continue;
+        const current = Object.getOwnPropertyDescriptor(document, name);
+        if (current?.get !== patchedPropertyGetters.get(name)) continue;
+        if (descriptor) Object.defineProperty(document, name, descriptor);
+        else delete document[name];
+      } catch (_) {}
+    }
+
+    window.removeEventListener('__window_fullscreen_exit_from_content__', exit);
+    window.removeEventListener('__window_fullscreen_uninstall__', restore);
+    delete window[runtimeKey];
+  }
+
+  window[runtimeKey] = { restore };
+  Element.prototype.requestFullscreen = requestFullscreen;
+  if (nativeWebkitRequest) Element.prototype.webkitRequestFullscreen = webkitRequestFullscreen;
+  Document.prototype.exitFullscreen = exitFullscreen;
+  if (nativeWebkitExit) Document.prototype.webkitExitFullscreen = webkitExitFullscreen;
+  window.addEventListener('__window_fullscreen_exit_from_content__', exit);
+  window.addEventListener('__window_fullscreen_uninstall__', restore);
 })();

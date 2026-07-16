@@ -28,6 +28,7 @@ header p{font-size:11px;color:var(--tx2);margin-top:2px}
 /* toggle */
 .toggle{cursor:pointer;flex-shrink:0}
 .toggle input{position:absolute;opacity:0;width:0;height:0}
+.toggle input:disabled+.track{cursor:wait;opacity:.55}
 .track{display:block;width:42px;height:23px;background:rgba(255,255,255,.1);
   border-radius:12px;border:1px solid rgba(255,255,255,.1);
   transition:background .25s,border-color .25s;position:relative}

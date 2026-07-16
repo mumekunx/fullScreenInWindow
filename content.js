@@ -1,121 +1,105 @@
 (function () {
   'use strict';
 
+  if (globalThis.__windowFullscreenContentLoaded) return;
+  globalThis.__windowFullscreenContentLoaded = true;
+
   const api = typeof browser !== 'undefined' ? browser : chrome;
-  let enabled = true, active = false, target = null, overlay = null, controls = null, timer = null;
+  let enabled = false;
+  let active = false;
+  let target = null;
+  let overlay = null;
+  let loader = null;
 
-  // 設定読み込み → スクリプト注入
-  api.storage.sync.get(['wfsEnabled'], r => {
-    enabled = r.wfsEnabled !== false;
-    reflect();
-    inject();
-  });
+  function injectMainScript() {
+    if (!enabled || loader) return;
 
-  function reflect() {
-    document.documentElement.dataset.wfsEnabled = String(enabled);
+    loader = document.createElement('script');
+    loader.src = api.runtime.getURL('injected.js');
+    loader.dataset.windowFullscreenLoader = 'true';
+    loader.addEventListener('load', () => {
+      loader?.remove();
+      loader = null;
+      if (!enabled) window.dispatchEvent(new CustomEvent('__window_fullscreen_uninstall__'));
+    }, { once: true });
+    loader.addEventListener('error', () => {
+      loader?.remove();
+      loader = null;
+      enabled = false;
+    }, { once: true });
+    (document.head || document.documentElement).appendChild(loader);
   }
 
-  function inject() {
-    if (document.querySelector('[data-wfs]')) return;
-    const s = document.createElement('script');
-    s.src = api.runtime.getURL('injected.js');
-    s.dataset.wfs = '1';
-    (document.head || document.documentElement).appendChild(s);
-    s.addEventListener('load', () => s.remove(), { once: true });
-  }
+  function enter(element) {
+    if (!enabled || active) return;
+    active = true;
+    target = element;
 
-  // ---- ページからのイベント受信（セキュア） ----
-  window.addEventListener('__wfs_enter__', e => {
-    if (!enabled) return;
-    const id = e.detail?.id;
-    // wfsId のフォーマット検証（インジェクション対策）
-    if (typeof id !== 'string' || !/^wfs-\d+$/.test(id)) return;
-    const el = document.querySelector(`[data-wfs-id="${CSS.escape(id)}"]`);
-    if (el) enter(el);
-  });
-
-  window.addEventListener('__wfs_exit__', () => { if (active) cleanup(false); });
-
-  // ---- ウィンドウフルスクリーン開始 ----
-  function enter(el) {
-    if (active) return;
-    active = true; target = el;
-
-    // <html>/<body> が対象の場合、オーバーレイを挿入すると全コンテンツを覆い隠すため
-    // 黒背景のみ適用し、レイアウトはサイト自身のフルスクリーン処理に任せる
-    const isRoot = el === document.documentElement || el === document.body;
-
-    // innerHTML の代わりに DOM API でコントロールを構築（XSS対策）
-    controls = document.createElement('div');
-    controls.id = 'wfs-controls';
-
-    const inner = document.createElement('div');
-    inner.id = 'wfs-controls-inner';
-
-    const badge = document.createElement('div');
-    badge.id = 'wfs-badge';
-    badge.textContent = 'Window Fullscreen';
-
-    const btn = document.createElement('button');
-    btn.id = 'wfs-exit-btn';
-    btn.title = 'ウィンドウフルスクリーンを終了 (Esc)';
-    btn.textContent = '✕ 終了';
-    btn.addEventListener('click', () => cleanup(true), { once: true });
-
-    inner.append(badge, btn);
-    controls.appendChild(inner);
-
-    if (isRoot) {
-      document.documentElement.classList.add('wfs-root');
-      document.documentElement.append(controls);
+    if (element === document.documentElement || element === document.body) {
+      document.documentElement.classList.add('window-fullscreen-extension-root');
     } else {
       overlay = document.createElement('div');
-      overlay.id = 'wfs-overlay';
-      el.classList.add('wfs-active');
-      document.documentElement.append(overlay, controls);
+      overlay.id = 'window-fullscreen-extension-overlay';
+      overlay.setAttribute('aria-hidden', 'true');
+      element.classList.add('window-fullscreen-extension-active');
+      document.documentElement.appendChild(overlay);
     }
-    document.documentElement.classList.add('wfs-lock');
-    document.addEventListener('mousemove', onMove, { passive: true });
-    show();
+
+    document.documentElement.classList.add('window-fullscreen-extension-lock');
   }
 
-  function show() {
-    if (!controls) return;
-    controls.classList.add('wfs-on');
-    clearTimeout(timer);
-    timer = setTimeout(() => controls?.classList.remove('wfs-on'), 3000);
-  }
-
-  function onMove() {
-    if (!active) { document.removeEventListener('mousemove', onMove); return; }
-    show();
-  }
-
-  function cleanup(notify) {
+  function cleanup(notifyMain) {
     active = false;
-    clearTimeout(timer); timer = null;
-    document.removeEventListener('mousemove', onMove);
-    target?.classList.remove('wfs-active');
-    target?.removeAttribute('data-wfs-id');
+    target?.classList.remove('window-fullscreen-extension-active');
+    target?.removeAttribute('data-window-fullscreen-id');
     target = null;
-    overlay?.remove(); overlay = null;
-    controls?.remove(); controls = null;
-    document.documentElement.classList.remove('wfs-lock');
-    document.documentElement.classList.remove('wfs-root');
-    if (notify) window.dispatchEvent(new CustomEvent('__wfs_exit_from_content__'));
+    overlay?.remove();
+    overlay = null;
+    document.documentElement.classList.remove('window-fullscreen-extension-lock');
+    document.documentElement.classList.remove('window-fullscreen-extension-root');
+
+    if (notifyMain) {
+      window.dispatchEvent(new CustomEvent('__window_fullscreen_exit_from_content__'));
+    }
   }
 
-  // ---- メッセージ受信（ポップアップから） ----
-  api.runtime.onMessage.addListener((msg, _, res) => {
-    if (msg.type === 'WFS_SET_ENABLED') {
-      enabled = msg.enabled;
-      reflect();
-      if (!enabled && active) cleanup(true);
-      res({ ok: true });
+  function setEnabled(value) {
+    enabled = Boolean(value);
+    if (enabled) {
+      injectMainScript();
+    } else {
+      loader?.remove();
+      loader = null;
+      if (active) cleanup(true);
+      window.dispatchEvent(new CustomEvent('__window_fullscreen_uninstall__'));
+    }
+    return { ok: true, loaded: true, enabled, active };
+  }
+
+  window.addEventListener('__window_fullscreen_enter__', event => {
+    if (!enabled) return;
+    const id = event.detail?.id;
+    if (typeof id !== 'string' || !/^wfs-\d+$/.test(id)) return;
+    const element = document.querySelector(`[data-window-fullscreen-id="${CSS.escape(id)}"]`);
+    if (element) enter(element);
+  });
+
+  window.addEventListener('__window_fullscreen_exit__', () => {
+    if (active) cleanup(false);
+  });
+
+  api.runtime.onMessage.addListener((message, _sender, respond) => {
+    if (message?.type === 'WFS_GET_STATUS') {
+      respond({ ok: true, loaded: true, enabled, active });
+      return;
+    }
+
+    if (message?.type === 'WFS_SET_ENABLED') {
+      respond(setEnabled(message.enabled));
     }
   });
 
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && active) cleanup(true);
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && active) cleanup(true);
   }, true);
 })();

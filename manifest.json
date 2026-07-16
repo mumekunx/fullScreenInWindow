@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Window Fullscreen",
-  "version": "1.0.0",
-  "description": "フルスクリーンボタンを押した時に、画面全体ではなくブラウザウィンドウいっぱいにビデオを表示します。",
+  "version": "1.1.0",
+  "description": "ユーザーが明示的に有効化したタブで、サイトのフルスクリーン操作をウィンドウ内表示に切り替えます。",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -17,21 +17,14 @@
     },
     "default_title": "Window Fullscreen"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "css": ["content.css"],
-      "run_at": "document_start"
-    }
-  ],
   "web_accessible_resources": [
     {
       "resources": ["injected.js"],
-      "matches": ["<all_urls>"]
+      "matches": ["http://*/*", "https://*/*"]
     }
   ],
   "permissions": [
-    "storage"
+    "activeTab",
+    "scripting"
   ]
 }

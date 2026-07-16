@@ -1,13 +1,16 @@
-html.wfs-lock,html.wfs-lock body{overflow:hidden!important}
-html.wfs-root,html.wfs-root body{background:#000!important}
+html.window-fullscreen-extension-lock,
+html.window-fullscreen-extension-lock body{overflow:hidden!important}
 
-#wfs-overlay{
+html.window-fullscreen-extension-root,
+html.window-fullscreen-extension-root body{background:#000!important}
+
+#window-fullscreen-extension-overlay{
   position:fixed!important;inset:0!important;
   background:#000!important;z-index:2147483640!important;
   pointer-events:none!important;margin:0!important;padding:0!important;
 }
 
-.wfs-active{
+.window-fullscreen-extension-active{
   position:fixed!important;inset:0!important;
   width:100vw!important;height:100vh!important;
   z-index:2147483645!important;
@@ -16,34 +19,10 @@ html.wfs-root,html.wfs-root body{background:#000!important}
   min-width:unset!important;min-height:unset!important;
   transform:none!important;box-shadow:none!important;background:#000!important;
 }
-video.wfs-active{object-fit:contain!important}
 
-#wfs-controls{
-  position:fixed!important;top:0!important;left:0!important;right:0!important;
-  z-index:2147483647!important;pointer-events:none!important;
-  opacity:0!important;transition:opacity .25s!important;
+video.window-fullscreen-extension-active,
+.window-fullscreen-extension-active video{
+  width:100%!important;height:100%!important;
+  max-width:100%!important;max-height:100%!important;
+  object-fit:contain!important;
 }
-#wfs-controls.wfs-on{opacity:1!important;pointer-events:auto!important}
-
-#wfs-controls-inner{
-  display:flex!important;align-items:center!important;justify-content:space-between!important;
-  padding:10px 16px!important;
-  background:linear-gradient(to bottom,rgba(0,0,0,.8),transparent)!important;
-  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif!important;
-}
-
-#wfs-badge{
-  color:rgba(255,255,255,.85)!important;font-size:12px!important;font-weight:500!important;
-  background:rgba(255,255,255,.1)!important;border:1px solid rgba(255,255,255,.15)!important;
-  border-radius:20px!important;padding:4px 12px!important;pointer-events:none!important;
-}
-
-#wfs-exit-btn{
-  display:flex!important;align-items:center!important;gap:5px!important;
-  background:rgba(255,255,255,.12)!important;border:1px solid rgba(255,255,255,.2)!important;
-  border-radius:20px!important;color:rgba(255,255,255,.9)!important;
-  font-size:12px!important;font-weight:500!important;padding:5px 13px!important;
-  cursor:pointer!important;transition:background .2s!important;
-  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif!important;
-}
-#wfs-exit-btn:hover{background:rgba(255,255,255,.22)!important}
